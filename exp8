@@ -1,0 +1,257 @@
+
+EASY LEVEL:
+
+
+login.jsp
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Login Page</title>
+</head>
+<body>
+    <h2>Login</h2>
+    <form action="LoginServlet" method="post">
+        Username: <input type="text" name="username" required /><br/><br/>
+        Password: <input type="password" name="password" required /><br/><br/>
+        <input type="submit" value="Login" />
+    </form>
+    <c:if test="${not empty error}">
+        <p style="color:red;">${error}</p>
+    </c:if>
+</body>
+</html>
+
+
+LoginServlet.java
+
+import java.io.IOException;
+import javax.servlet.*;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.*;
+
+@WebServlet("/LoginServlet")
+public class LoginServlet extends HttpServlet {
+    private static final String VALID_USERNAME = "admin";
+    private static final String VALID_PASSWORD = "password";
+
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        String username = request.getParameter("username");
+        String password = request.getParameter("password");
+
+        if (VALID_USERNAME.equals(username) && VALID_PASSWORD.equals(password)) {
+            request.getSession().setAttribute("username", username);
+            request.setAttribute("message", "Welcome " + username + "!");
+            request.getRequestDispatcher("welcome.jsp").forward(request, response);
+        } else {
+            request.setAttribute("error", "Invalid username or password.");
+            request.getRequestDispatcher("login.jsp").forward(request, response);
+        }
+    }
+}
+
+welcome.jsp
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Welcome</title>
+</head>
+<body>
+    <h2>${message}</h2>
+    <p>You have successfully logged in.</p>
+</body>
+</html>
+employeeSearch.jsp
+text
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Employee Search</title>
+</head>
+<body>
+    <h2>Search Employee</h2>
+    <form action="EmployeeServlet" method="get">
+        Employee ID: <input type="text" name="empId" placeholder="Enter Employee ID" />
+        <input type="submit" value="Search" />
+    </form>
+    <hr/>
+    <a href="EmployeeServlet">View All Employees</a>
+</body>
+</html>
+
+
+MEDIUM LEVEL
+
+
+EmployeeServlet.java
+
+import java.io.*;
+import java.sql.*;
+import javax.servlet.*;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.*;
+
+@WebServlet("/EmployeeServlet")
+public class EmployeeServlet extends HttpServlet {
+    private static final String DB_URL = "jdbc:mysql://localhost:3306/yourdatabase";
+    private static final String DB_USER = "yourusername";
+    private static final String DB_PASSWORD = "yourpassword";
+
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        String empId = request.getParameter("empId");
+        response.setContentType("text/html");
+        try (PrintWriter out = response.getWriter()) {
+            out.println("<html><head><title>Employee Details</title></head><body>");
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            try (Connection con = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD)) {
+                if (empId != null && !empId.trim().isEmpty()) {
+                    showEmployeeById(out, con, empId);
+                } else {
+                    showAllEmployees(out, con);
+                }
+            }
+            out.println("<br/><a href='employeeSearch.jsp'>Back to Search</a>");
+            out.println("</body></html>");
+        } catch (Exception e) {
+            response.getWriter().println("<p>Error: " + e.getMessage() + "</p>");
+        }
+    }
+
+    private void showEmployeeById(PrintWriter out, Connection con, String empId) throws SQLException {
+        String sql = "SELECT id, name, department, salary FROM employees WHERE id = ?";
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, Integer.parseInt(empId));
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    out.println("<h2>Employee Details</h2>");
+                    out.println("<p>ID: " + rs.getInt("id") + "</p>");
+                    out.println("<p>Name: " + rs.getString("name") + "</p>");
+                    out.println("<p>Department: " + rs.getString("department") + "</p>");
+                    out.println("<p>Salary: " + rs.getDouble("salary") + "</p>");
+                } else {
+                    out.println("<p>No employee found with ID: " + empId + "</p>");
+                }
+            }
+        }
+    }
+
+    private void showAllEmployees(PrintWriter out, Connection con) throws SQLException {
+        String sql = "SELECT id, name, department, salary FROM employees";
+        try (PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            out.println("<h2>All Employees</h2>");
+            out.println("<table border='1'><tr><th>ID</th><th>Name</th><th>Department</th><th>Salary</th></tr>");
+            while (rs.next()) {
+                out.println("<tr>");
+                out.println("<td>" + rs.getInt("id") + "</td>");
+                out.println("<td>" + rs.getString("name") + "</td>");
+                out.println("<td>" + rs.getString("department") + "</td>");
+                out.println("<td>" + rs.getDouble("salary") + "</td>");
+                out.println("</tr>");
+            }
+            out.println("</table>");
+        }
+    }
+}
+
+
+attendance.jsp
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Student Attendance Portal</title>
+</head>
+<body>
+    <h2>Student Attendance Portal</h2>
+    <form action="AttendanceServlet" method="post">
+        Student ID: <input type="text" name="studentId" required /><br/><br/>
+        Date: <input type="date" name="date" required /><br/><br/>
+        Status: 
+        <select name="status">
+            <option value="Present">Present</option>
+            <option value="Absent">Absent</option>
+        </select><br/><br/>
+        <input type="submit" value="Submit Attendance" />
+    </form>
+</body>
+</html>
+
+
+AttendanceServlet.java
+
+import java.io.IOException;
+import java.sql.*;
+import javax.servlet.*;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.*;
+
+@WebServlet("/AttendanceServlet")
+public class AttendanceServlet extends HttpServlet {
+    private static final String DB_URL = "jdbc:mysql://localhost:3306/yourdatabase";
+    private static final String DB_USER = "yourusername";
+    private static final String DB_PASSWORD = "yourpassword";
+
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        String studentId = request.getParameter("studentId");
+        String dateStr = request.getParameter("date");
+        String status = request.getParameter("status");
+
+        try {
+            Date sqlDate = Date.valueOf(dateStr);
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            try (Connection con = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+                 PreparedStatement ps = con.prepareStatement(
+                     "INSERT INTO attendance (student_id, date, status) VALUES (?, ?, ?)")) {
+                ps.setString(1, studentId);
+                ps.setDate(2, sqlDate);
+                ps.setString(3, status);
+                int result = ps.executeUpdate();
+                if (result > 0) {
+                    response.sendRedirect("attendanceSuccess.jsp");
+                } else {
+                    response.sendRedirect("attendanceFailure.jsp");
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.sendRedirect("attendanceFailure.jsp");
+        }
+    }
+}
+
+
+attendanceSuccess.jsp
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Attendance Recorded</title>
+</head>
+<body>
+    <h2>Attendance recorded successfully!</h2>
+    <a href="attendance.jsp">Record Another Attendance</a>
+</body>
+</html>
+attendanceFailure.jsp
+text
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Attendance Error</title>
+</head>
+<body>
+    <h2>Error in recording attendance. Please try again.</h2>
+    <a href="attendance.jsp">Back to Attendance Portal</a>
+</body>
+</html>
